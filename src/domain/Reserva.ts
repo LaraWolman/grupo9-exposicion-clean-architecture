@@ -3,7 +3,7 @@ import { ReglaAnticipacion } from './ReglaAnticipacion.js';
 
 export type EstadoReserva = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA';
 
-export type TipoVehiculo = 'ESTANDAR' | 'PREMIUM' | 'XL';
+export type TipoVehiculo = 'AUTO' | 'MOTO';
 
 export interface DatosNuevaReserva {
   id: string;
@@ -22,7 +22,7 @@ export interface ReservaProps extends DatosNuevaReserva {
   modificadaEn: Date;
 }
 
-const TIPOS_VEHICULO: readonly TipoVehiculo[] = ['ESTANDAR', 'PREMIUM', 'XL'];
+const TIPOS_VEHICULO: readonly TipoVehiculo[] = ['AUTO', 'MOTO'];
 
 /**
  * Entidad Reserva. Solo conoce sus reglas: estados, transiciones y ventana de

@@ -11,7 +11,7 @@ const datos = (cambios: Partial<DatosNuevaReserva> = {}): DatosNuevaReserva => (
   clienteId: 'cliente_001',
   origen: 'Av. Sarmiento 1000',
   destino: 'UTN FRRe',
-  tipoVehiculo: 'ESTANDAR',
+  tipoVehiculo: 'AUTO',
   fechaHora: enMinutos(120),
   ...cambios,
 });
@@ -44,7 +44,7 @@ test('rechaza más de la anticipación máxima', () => {
 
 test('rechaza datos obligatorios vacíos o tipo de vehículo inválido', () => {
   assert.throws(() => Reserva.crear(datos({ origen: '  ' }), regla, ahora), conCodigo('DATOS_INVALIDOS'));
-  assert.throws(() => Reserva.crear(datos({ tipoVehiculo: 'MOTO' as never }), regla, ahora), conCodigo('DATOS_INVALIDOS'));
+  assert.throws(() => Reserva.crear(datos({ tipoVehiculo: 'CAMION' as never }), regla, ahora), conCodigo('DATOS_INVALIDOS'));
 });
 
 test('PENDIENTE -> CONFIRMADA -> CANCELADA', () => {
