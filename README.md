@@ -78,6 +78,34 @@ Cómo se usan:
 - **Reintento:** `listarPendientes()`, por cada una `notificar(p.notificacion)`;
   si anda, `p.marcarEntregada(ahora)`; si no, `p.registrarIntentoFallido(msg)`; y `guardar(p)`.
 
+## Composición de dependencias (`src/main`)
+
+`src/main/composicion.ts` es el único lugar donde se eligen las implementaciones y se inyectan en los casos de uso.
+`src/main/config.ts` es el único que lee variables de entorno.
+
+```ts
+const deps = componer(leerConfig(process.env));
+// deps: { reservas, pendientes, notificador, crearReserva, cancelarReserva, reintentarNotificaciones }
+```
+
+Pasar de la versión A a la B es solo `MODO_NOTIFICACIONES=http` + `NOTIFICACIONES_URL`.
+
+Nombres acordados (la composición los importa así):
+
+| Persona | Archivo | Clase / función | Constructor |
+|---|---|---|---|
+| 2 | `src/application/CrearReserva.ts` | `CrearReserva` | `(reservas, notificador, pendientes, regla, reloj)` |
+| 2 | `src/application/CancelarReserva.ts` | `CancelarReserva` | `(reservas, notificador, pendientes, reloj)` |
+| 3 | `src/infrastructure/ReservaRepositoryEnMemoria.ts` | `ReservaRepositoryEnMemoria` | `()` |
+| 3 | `src/api/app.ts` | `crearApp` | `({ crearReserva, cancelarReserva, reservas })` |
+| 4 | `src/infrastructure/NotificadorEnMemoria.ts` | `NotificadorEnMemoria` | `()` |
+| 4 | `src/application/ReintentarNotificaciones.ts` | `ReintentarNotificaciones` | `(notificador, pendientes, reloj)` |
+| 5 | `src/infrastructure/NotificadorHttp.ts` | `NotificadorHttp` | `(urlBase, timeoutMs)` |
+| 7 | `src/infrastructure/NotificacionPendienteRepositoryEnMemoria.ts` | `NotificacionPendienteRepositoryEnMemoria` | `()` |
+
+`reloj` es `() => Date`. Si falla `notificar`, el caso de uso guarda la notificación como PENDIENTE (acordado).
+Hasta que estén todas estas clases, `npm run typecheck` marca los imports faltantes de `composicion.ts`; `npm test` anda igual.
+
 Traducción sugerida de errores a HTTP (Persona 3): `DATOS_INVALIDOS`, `FECHA_PASADA`,
 `ANTICIPACION_INSUFICIENTE`, `ANTICIPACION_EXCEDIDA`, `MOTIVO_REQUERIDO` → 422;
 `TRANSICION_INVALIDA` → 409; reserva inexistente → 404.
@@ -89,4 +117,6 @@ Traducción sugerida de errores a HTTP (Persona 3): `DATOS_INVALIDOS`, `FECHA_PA
 | `ANTICIPACION_MINIMA_MINUTOS` | 60 | Regla de anticipación |
 | `ANTICIPACION_MAXIMA_DIAS` | 30 | Regla de anticipación |
 | `MODO_NOTIFICACIONES` | `memoria` | `memoria` (versión A) o `http` (versión B) |
-| `NOTIFICACIONES_URL` | — | URL del servicio en la versión B |
+| `NOTIFICACIONES_URL` | — | URL del servicio en la versión B (obligatoria si es `http`) |
+| `NOTIFICACIONES_TIMEOUT_MS` | 2000 | Timeout del cliente HTTP (versión B) |
+| `PUERTO` | 3000 | Puerto de la API |
