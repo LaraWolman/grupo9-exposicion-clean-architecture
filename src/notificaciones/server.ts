@@ -3,7 +3,7 @@ import express from 'express';
 import type { Notificacion } from '../domain/index.js';
 
 const app = express();
-const puerto = Number(process.env.PORT ?? 3001);
+const puerto = Number(process.env.PUERTO ?? 3001);
 
 // Permite recibir datos JSON.
 app.use(express.json());

@@ -185,6 +185,21 @@ sin modificar las reglas de negocio.
 - Para responder JSON se utilizan `reserva.aProps()` y `pendiente.aProps()`.
 - El body de `POST /notificaciones` es un objeto `Notificacion` del dominio: `{ reservaId, destinatario, tipo, mensaje }`.
 
+### Traducción sugerida de errores a HTTP (Valentino)
+
+La API de Reservas debe traducir los errores del dominio
+a los siguientes códigos HTTP:
+
+| Error | Código HTTP |
+|---|---|
+| `DATOS_INVALIDOS` | 422 |
+| `FECHA_PASADA` | 422 |
+| `ANTICIPACION_INSUFICIENTE` | 422 |
+| `ANTICIPACION_EXCEDIDA` | 422 |
+| `MOTIVO_REQUERIDO` | 422 |
+| `TRANSICION_INVALIDA` | 409 |
+| Reserva inexistente | 404 |
+
 ### Comportamiento ante fallas
 
 Si el servicio de Notificaciones no está disponible,
@@ -202,5 +217,4 @@ No se implementan reintentos automáticos.
 | `MODO_NOTIFICACIONES` | `memoria` | `memoria` (versión A) o `http` (versión B) |
 | `NOTIFICACIONES_URL` | — | URL del servicio en la versión B (obligatoria si es `http`) |
 | `NOTIFICACIONES_TIMEOUT_MS` | 2000 | Timeout del cliente HTTP (versión B) |
-| `PUERTO` | 3000 | Puerto de la API |
-| `PORT` | `3001` | Puerto del servicio independiente de Notificaciones |
+| `PUERTO` | 3000 (Reservas) / 3001 (Notificaciones) | Puerto de cada servicio |
