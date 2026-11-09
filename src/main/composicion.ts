@@ -18,7 +18,6 @@ import { ListarPendientes } from '../application/ListarPendientes.js';          
 import { ReservaRepositoryEnMemoria } from '../infrastructure/ReservaRepositoryEnMemoria.js';   // Valentino
 import { NotificacionPendienteRepositoryEnMemoria } from '../infrastructure/NotificacionPendienteRepositoryEnMemoria.js'; // Valentino
 import { NotificadorEnMemoria } from '../infrastructure/NotificadorEnMemoria.js'; // Oriana (versión A)
-import { NotificadorHttp } from '../infrastructure/NotificadorHttp.js';           // Bianca (versión B)
 
 import type { Config } from './config.js';
 
@@ -32,23 +31,27 @@ export interface Dependencias {
 }
 
 /** El punto de A contra B: la única decisión que cambia entre las dos versiones. */
-function elegirNotificador(config: Config): INotificador {
+async function elegirNotificador(config: Config): Promise<INotificador> {
   if (config.modoNotificaciones === 'http') {
-    // Versión B: Notificaciones es otro contenedor y se le habla por HTTP.
+    // El cliente HTTP se carga en la versión B. La versión A puede arrancar sin ese adaptador.
+    const ruta = '../infrastructure/NotificadorHttp.js';
+    const { NotificadorHttp }: {
+      NotificadorHttp: new (urlBase: string, timeoutMs: number) => INotificador;
+    } = await import(ruta);
     return new NotificadorHttp(config.notificacionesUrl!, config.notificacionesTimeoutMs);
   }
   // Versión A: Notificaciones es un módulo dentro del mismo proceso.
   return new NotificadorEnMemoria();
 }
 
-export function componer(config: Config): Dependencias {
+export async function componer(config: Config): Promise<Dependencias> {
   const reloj = () => new Date();
   const regla = new ReglaAnticipacion(config.anticipacionMinimaMinutos, config.anticipacionMaximaDias);
 
   // Adaptadores (Infrastructure) que implementan los puertos.
   const reservas: IReservaRepository = new ReservaRepositoryEnMemoria();
   const pendientes: INotificacionPendienteRepository = new NotificacionPendienteRepositoryEnMemoria();
-  const notificador = elegirNotificador(config);
+  const notificador = await elegirNotificador(config);
 
   // Casos de uso (Application): reciben los puertos, no saben qué implementación hay detrás.
   return {
