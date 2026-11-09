@@ -85,23 +85,34 @@ Cómo se usan:
 
 ```ts
 const deps = componer(leerConfig(process.env));
-// deps: { reservas, pendientes, notificador, crearReserva, cancelarReserva, reintentarNotificaciones }
+// deps: { reservas, pendientes, notificador, crearReserva, consultarReserva, listarPendientes }
 ```
 
 Pasar de la versión A a la B es solo `MODO_NOTIFICACIONES=http` + `NOTIFICACIONES_URL`.
 
 Nombres acordados (la composición los importa así):
 
-| Persona | Archivo | Clase / función | Constructor |
+| Quién | Archivo | Clase / función | Constructor |
 |---|---|---|---|
-| 2 | `src/application/CrearReserva.ts` | `CrearReserva` | `(reservas, notificador, pendientes, regla, reloj)` |
-| 2 | `src/application/CancelarReserva.ts` | `CancelarReserva` | `(reservas, notificador, pendientes, reloj)` |
-| 3 | `src/infrastructure/ReservaRepositoryEnMemoria.ts` | `ReservaRepositoryEnMemoria` | `()` |
-| 3 | `src/api/app.ts` | `crearApp` | `({ crearReserva, cancelarReserva, reservas })` |
-| 4 | `src/infrastructure/NotificadorEnMemoria.ts` | `NotificadorEnMemoria` | `()` |
-| 4 | `src/application/ReintentarNotificaciones.ts` | `ReintentarNotificaciones` | `(notificador, pendientes, reloj)` |
-| 5 | `src/infrastructure/NotificadorHttp.ts` | `NotificadorHttp` | `(urlBase, timeoutMs)` |
-| 7 | `src/infrastructure/NotificacionPendienteRepositoryEnMemoria.ts` | `NotificacionPendienteRepositoryEnMemoria` | `()` |
+| Lara | `src/application/CrearReserva.ts` | `CrearReserva` | `(reservas, notificador, pendientes, regla, reloj)` |
+| Lara | `src/application/ConsultarReserva.ts` | `ConsultarReserva` | `(reservas)` |
+| Lara | `src/application/ListarPendientes.ts` | `ListarPendientes` | `(pendientes)` |
+| Valentino | `src/infrastructure/ReservaRepositoryEnMemoria.ts` | `ReservaRepositoryEnMemoria` | `()` |
+| Valentino | `src/infrastructure/NotificacionPendienteRepositoryEnMemoria.ts` | `NotificacionPendienteRepositoryEnMemoria` | `()` |
+| Valentino | `src/api/app.ts` | `crearApp` | `({ crearReserva, consultarReserva, listarPendientes })` |
+| Valentino | `src/main/server.ts` | — | `componer(leerConfig(process.env))` y escucha en `config.puerto` |
+| Oriana | `src/infrastructure/NotificadorEnMemoria.ts` | `NotificadorEnMemoria` | `()` |
+| Oriana | `src/notificaciones/server.ts` | — | `POST /notificaciones` en el puerto 3001 |
+| Bianca | `src/infrastructure/NotificadorHttp.ts` | `NotificadorHttp` | `(urlBase, timeoutMs)` |
+
+Uso de los casos de uso (para la API):
+
+- `crearReserva.ejecutar({ clienteId, origen, destino, tipoVehiculo, fechaHora })` → `Promise<Reserva>` (CONFIRMADA).
+  `fechaHora` es `Date`: la API convierte el string del body con `new Date(...)`. Si una regla no se cumple, rechaza con `ErrorDeDominio`.
+- `consultarReserva.ejecutar(id)` → `Promise<Reserva | null>` (`null` → 404).
+- `listarPendientes.ejecutar()` → `Promise<NotificacionPendiente[]>`.
+- Para responder JSON: `reserva.aProps()` y `pendiente.aProps()`.
+- El body de `POST /notificaciones` es un objeto `Notificacion` del dominio: `{ reservaId, destinatario, tipo, mensaje }`.
 
 `reloj` es `() => Date`. Si falla `notificar`, el caso de uso guarda la notificación como PENDIENTE (acordado).
 Hasta que estén todas estas clases, `npm run typecheck` marca los imports faltantes de `composicion.ts`; `npm test` anda igual.
