@@ -11,14 +11,14 @@
 import { ReglaAnticipacion } from '../domain/index.js';
 import type { INotificador, IReservaRepository, INotificacionPendienteRepository } from '../domain/index.js';
 
-import { CrearReserva } from '../application/CrearReserva.js';                   // Persona 2
-import { CancelarReserva } from '../application/CancelarReserva.js';             // Persona 2
-import { ReintentarNotificaciones } from '../application/ReintentarNotificaciones.js'; // Persona 4
+import { CrearReserva } from '../application/CrearReserva.js';                   // Lara
+import { ConsultarReserva } from '../application/ConsultarReserva.js';           // Lara
+import { ListarPendientes } from '../application/ListarPendientes.js';           // Lara
 
-import { ReservaRepositoryEnMemoria } from '../infrastructure/ReservaRepositoryEnMemoria.js';   // Persona 3
-import { NotificacionPendienteRepositoryEnMemoria } from '../infrastructure/NotificacionPendienteRepositoryEnMemoria.js'; // Persona 7
-import { NotificadorEnMemoria } from '../infrastructure/NotificadorEnMemoria.js'; // Persona 4 (versión A)
-import { NotificadorHttp } from '../infrastructure/NotificadorHttp.js';           // Persona 5 (versión B)
+import { ReservaRepositoryEnMemoria } from '../infrastructure/ReservaRepositoryEnMemoria.js';   // Valentino
+import { NotificacionPendienteRepositoryEnMemoria } from '../infrastructure/NotificacionPendienteRepositoryEnMemoria.js'; // Valentino
+import { NotificadorEnMemoria } from '../infrastructure/NotificadorEnMemoria.js'; // Oriana (versión A)
+import { NotificadorHttp } from '../infrastructure/NotificadorHttp.js';           // Bianca (versión B)
 
 import type { Config } from './config.js';
 
@@ -27,8 +27,8 @@ export interface Dependencias {
   pendientes: INotificacionPendienteRepository;
   notificador: INotificador;
   crearReserva: CrearReserva;
-  cancelarReserva: CancelarReserva;
-  reintentarNotificaciones: ReintentarNotificaciones;
+  consultarReserva: ConsultarReserva;
+  listarPendientes: ListarPendientes;
 }
 
 /** El punto de A contra B: la única decisión que cambia entre las dos versiones. */
@@ -56,7 +56,7 @@ export function componer(config: Config): Dependencias {
     pendientes,
     notificador,
     crearReserva: new CrearReserva(reservas, notificador, pendientes, regla, reloj),
-    cancelarReserva: new CancelarReserva(reservas, notificador, pendientes, reloj),
-    reintentarNotificaciones: new ReintentarNotificaciones(notificador, pendientes, reloj),
+    consultarReserva: new ConsultarReserva(reservas),
+    listarPendientes: new ListarPendientes(pendientes),
   };
 }
