@@ -149,7 +149,7 @@ para mostrar las notificaciones dentro de la misma aplicación.
 La composición de dependencias se realiza mediante:
 
 ```ts
-const deps = componer(leerConfig(process.env));
+const deps = await componer(leerConfig(process.env));
 // deps: { reservas, pendientes, notificador, crearReserva, consultarReserva, listarPendientes }
 ```
 
