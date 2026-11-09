@@ -11,7 +11,7 @@ Solo cambia `infrastructure` y la composición (`main`). `domain` y `application
 
 ## Requisitos
 
-Node 20 o superior. Docker solo para levantar las versiones A y B.
+Node 22 o superior (el contenedor usa Node 24). Docker solo para levantar las versiones A y B.
 
 ```bash
 npm install
