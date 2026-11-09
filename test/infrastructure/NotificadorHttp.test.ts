@@ -20,7 +20,7 @@ describe('NotificadorHttp', () => {
       return { ok: true, status: 201 };
     };
 
-    const notificador = new NotificadorHttp('http://notificaciones:3001', fetchFalso);
+    const notificador = new NotificadorHttp('http://notificaciones:3001', 2000, fetchFalso);
     await notificador.notificar(notificacion);
 
     assert.equal(urlUsada, 'http://notificaciones:3001/notificaciones');
@@ -30,7 +30,7 @@ describe('NotificadorHttp', () => {
 
   it('rechaza con ErrorDeNotificacion si el servicio responde con error', async () => {
     const fetchFalso: FetchLike = async () => ({ ok: false, status: 500 });
-    const notificador = new NotificadorHttp('http://x', fetchFalso);
+    const notificador = new NotificadorHttp('http://x', 2000, fetchFalso);
 
     await assert.rejects(notificador.notificar(notificacion), ErrorDeNotificacion);
   });
@@ -39,7 +39,7 @@ describe('NotificadorHttp', () => {
     const fetchFalso: FetchLike = async () => {
       throw new TypeError('fetch failed');
     };
-    const notificador = new NotificadorHttp('http://x', fetchFalso);
+    const notificador = new NotificadorHttp('http://x', 2000, fetchFalso);
 
     await assert.rejects(notificador.notificar(notificacion), ErrorDeNotificacion);
   });
@@ -50,8 +50,7 @@ describe('NotificadorHttp', () => {
       new Promise((_resolve, reject) => {
         init.signal.addEventListener('abort', () => reject(new Error('abortado')));
       });
-    const notificador = new NotificadorHttp('http://x', fetchFalso, 20); // 20 ms para que la prueba sea rápida
-
+    const notificador = new NotificadorHttp('http://x', 20, fetchFalso);
     await assert.rejects(
       notificador.notificar(notificacion),
       (error: unknown) =>
