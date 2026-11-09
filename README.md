@@ -142,8 +142,17 @@ ni reintentos automáticos de notificaciones.
 
 Lara se encarga de conectar los componentes del proyecto.
 
+
 En la versión A, Reservas utiliza `NotificadorEnMemoria`
 para mostrar las notificaciones dentro de la misma aplicación.
+
+La composición de dependencias se realiza mediante:
+
+```ts
+const deps = componer(leerConfig(process.env));
+// deps: { reservas, pendientes, notificador, crearReserva, consultarReserva, listarPendientes }
+```
+
 
 En la versión B, Reservas utiliza `NotificadorHttp`
 para comunicarse con el servicio independiente de Notificaciones.
@@ -151,15 +160,30 @@ para comunicarse con el servicio independiente de Notificaciones.
 La implementación se elige mediante `MODO_NOTIFICACIONES`,
 sin modificar las reglas de negocio.
 
-### Distribución de componentes
+### Componentes y archivos
 
-| Integrante | Responsabilidad |
-|---|---|
-| Lara | Casos de uso y composición de dependencias |
-| Valentino | Repositorios en memoria y API de Reservas |
-| Oriana | Notificador en memoria, servidor de Notificaciones, prueba de dependencias y README |
-| Bianca | Cliente HTTP y manejo de errores |
-| Irina | Docker y demostraciones |
+| Quién | Archivo | Clase / función | Constructor |
+|---|---|---|---|
+| Lara | `src/application/CrearReserva.ts` | `CrearReserva` | `(reservas, notificador, pendientes, regla, reloj)` |
+| Lara | `src/application/ConsultarReserva.ts` | `ConsultarReserva` | `(reservas)` |
+| Lara | `src/application/ListarPendientes.ts` | `ListarPendientes` | `(pendientes)` |
+| Valentino | `src/infrastructure/ReservaRepositoryEnMemoria.ts` | `ReservaRepositoryEnMemoria` | `()` |
+| Valentino | `src/infrastructure/NotificacionPendienteRepositoryEnMemoria.ts` | `NotificacionPendienteRepositoryEnMemoria` | `()` |
+| Valentino | `src/api/app.ts` | `crearApp` | `({ crearReserva, consultarReserva, listarPendientes })` |
+| Valentino | `src/main/server.ts` | Servidor de Reservas | `componer(leerConfig(process.env))` y escucha en `config.puerto` |
+| Oriana | `src/infrastructure/NotificadorEnMemoria.ts` | `NotificadorEnMemoria` | `()` |
+| Oriana | `src/notificaciones/server.ts` | Servicio de Notificaciones | `POST /notificaciones` en el puerto 3001 |
+| Bianca | `src/infrastructure/NotificadorHttp.ts` | `NotificadorHttp` | `(urlBase, timeoutMs)` |
+| Irina | Archivos Docker y Compose | Configuración de despliegues | Versiones A y B |
+
+### Uso de los casos de uso (para la API)
+
+- `crearReserva.ejecutar({ clienteId, origen, destino, tipoVehiculo, fechaHora })` devuelve `Promise<Reserva>` (CONFIRMADA).
+  `fechaHora` es `Date`: la API convierte el string del body con `new Date(...)`. Si una regla no se cumple, rechaza con `ErrorDeDominio`.
+- `consultarReserva.ejecutar(id)` devuelve `Promise<Reserva | null>` (`null` corresponde a 404).
+- `listarPendientes.ejecutar()` devuelve `Promise<NotificacionPendiente[]>`.
+- Para responder JSON se utilizan `reserva.aProps()` y `pendiente.aProps()`.
+- El body de `POST /notificaciones` es un objeto `Notificacion` del dominio: `{ reservaId, destinatario, tipo, mensaje }`.
 
 ### Comportamiento ante fallas
 
