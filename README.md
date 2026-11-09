@@ -19,98 +19,157 @@ npm test          # pruebas
 npm run typecheck # verifica tipos
 ```
 
+
 ## Estructura y responsables
 
-```
-src/
-  domain/                 Persona 1 · entidades, reglas y puertos (no importa nada de afuera)
-    Reserva.ts            entidad: estados PENDIENTE / CONFIRMADA / CANCELADA
-    ReglaAnticipacion.ts  ventana de anticipación (por defecto 60 min a 30 días, como M9)
-    NotificacionPendiente.ts
-    ErrorDeDominio.ts     errores con código (FECHA_PASADA, ANTICIPACION_INSUFICIENTE, ...)
-    puertos/
-      IReservaRepository.ts
-      INotificador.ts
-      INotificacionPendienteRepository.ts
-    index.ts              importar siempre desde acá
-  application/            Persona 2 · casos de uso Crear y Cancelar reserva · Persona 4 · reintento
-  infrastructure/         Persona 3 · repositorio de reservas · Persona 4 · notificador en memoria
-                          Persona 5 · cliente HTTP · Persona 7 · repositorio de pendientes
-  api/                    Persona 3 · endpoints crear, cancelar y consultar
-  main/                   Persona 1 · composición de dependencias (único lugar que elige implementaciones)
-test/
-```
+El proyecto está dividido en capas para separar
+la lógica de negocio de las implementaciones técnicas.
 
-**Regla de dependencia:** `api`, `infrastructure` y `main` pueden importar `application` y `domain`;
-`application` solo importa `domain`; `domain` no importa nada del proyecto ni de Node (ni `fs`, ni `http`, ni bases).
-La Persona 7 lo verifica con una prueba automática.
+### Organización del proyecto
 
-## Contrato de los puertos (para Personas 2, 3, 4, 5 y 7)
+- `src/domain/`: entidades, reglas de negocio y puertos. Lara.
+- `src/application/`: casos de uso de reservas. Lara.
+- `src/infrastructure/`: repositorios y notificadores.
+  Valentino, Oriana y Bianca.
+- `src/api/`: API de Reservas. Valentino.
+- `src/main/`: configuración y conexión de componentes. Lara.
+- `src/notificaciones/`: servicio HTTP independiente. Oriana.
+- `test/arquitectura/`: pruebas de dependencias. Oriana.
+
+Irina se encarga de Docker, los archivos Compose y
+los escenarios de demostración.
+
+### Regla de dependencia
+
+Las dependencias deben apuntar hacia las capas internas:
+
+- Domain no puede depender de Application,
+  Infrastructure, API, Main ni de Node.js.
+- Application puede utilizar Domain y sus propios
+  componentes, pero no las capas externas.
+- Infrastructure implementa los puertos definidos
+  en Domain.
+- Main conecta las implementaciones necesarias
+  para ejecutar cada versión.
+
+### Verificación automática
+
+La regla se comprueba mediante:
+
+`test/arquitectura/dependencias.test.ts`
+
+Para ejecutar la prueba:
+
+    npx tsx --test test/arquitectura/dependencias.test.ts
+
+Se verificó que la prueba detecta importaciones
+prohibidas. Al introducir temporalmente un import
+de Express dentro de Domain, la prueba falló
+correctamente.
+
+
+## Contrato de los puertos
+
+Los puertos son interfaces definidas por Lara en Domain.
+Permiten que los casos de uso trabajen sin depender
+directamente de las implementaciones técnicas.
+
+### IReservaRepository
+
+Permite guardar y consultar las reservas.
 
 ```ts
 interface IReservaRepository {
-  guardar(reserva: Reserva): Promise<void>;           // inserta o reemplaza por id
+  guardar(reserva: Reserva): Promise<void>;
   buscarPorId(id: string): Promise<Reserva | null>;
   listarPorCliente(clienteId: string): Promise<Reserva[]>;
 }
+```
 
+### INotificador
+
+Define cómo se entrega una notificación.
+
+```ts
 interface INotificador {
-  notificar(n: Notificacion): Promise<void>;          // si no puede entregar, rechaza con ErrorDeNotificacion
+  notificar(notificacion: Notificacion): Promise<void>;
 }
+```
 
+La notificación contiene:
+- reservaId: identificador de la reserva.
+- destinatario: cliente que recibe el aviso.
+- tipo: RESERVA_CREADA o RESERVA_CANCELADA.
+- mensaje: contenido de la notificación.
+
+En la versión A se utiliza NotificadorEnMemoria.
+En la versión B se utiliza NotificadorHttp.
+
+Ambas implementaciones cumplen la misma interfaz.
+
+Si la entrega falla, el notificador informa el error
+mediante ErrorDeNotificacion.
+
+### INotificacionPendienteRepository
+
+Permite guardar y consultar las notificaciones
+que no pudieron entregarse.
+
+```ts
 interface INotificacionPendienteRepository {
-  guardar(p: NotificacionPendiente): Promise<void>;   // inserta o reemplaza por id
+  guardar(p: NotificacionPendiente): Promise<void>;
   listarPendientes(): Promise<NotificacionPendiente[]>;
 }
 ```
 
-Cómo se usan:
+### Funcionamiento de las reservas y notificaciones
 
-- **Crear una reserva:** `Reserva.crear({ id, clienteId, origen, destino, tipoVehiculo, fechaHora }, regla, ahora)`.
-  El `id` lo genera el caso de uso (`crypto.randomUUID()`). Si una regla no se cumple, lanza `ErrorDeDominio` con `codigo`.
-- **Transiciones:** `reserva.confirmar(ahora)` y `reserva.cancelar(motivo, ahora)`.
-- **Repositorios:** guardan `reserva.aProps()` y leen con `Reserva.reconstituir(props)`
-  (lo mismo con `NotificacionPendiente`).
-- **`ahora`** se pasa siempre como parámetro: en las pruebas se usa una fecha fija.
-- **Falla de notificación:** `INotificador.notificar` rechaza con `ErrorDeNotificacion`.
-  Quien lo llama crea `NotificacionPendiente.registrar(id, notificacion, error.message, ahora)`
-  y la guarda; la reserva ya quedó guardada antes de notificar.
-- **Reintento:** `listarPendientes()`, por cada una `notificar(p.notificacion)`;
-  si anda, `p.marcarEntregada(ahora)`; si no, `p.registrarIntentoFallido(msg)`; y `guardar(p)`.
+1. El cliente solicita la creación de una reserva.
+2. El caso de uso valida los datos y guarda la reserva.
+3. Se intenta enviar una notificación.
+4. Si funciona, la notificación se muestra en consola.
+5. Si falla, la reserva permanece guardada y
+   se registra la notificación como pendiente.
+
+Los repositorios son en memoria, por lo que los datos
+no se conservan cuando se reinicia la aplicación.
+
+Esta versión no incluye cancelación de reservas
+ni reintentos automáticos de notificaciones.
+
 
 ## Composición de dependencias (`src/main`)
 
-`src/main/composicion.ts` es el único lugar donde se eligen las implementaciones y se inyectan en los casos de uso.
-`src/main/config.ts` es el único que lee variables de entorno.
+Lara se encarga de conectar los componentes del proyecto.
 
-```ts
-const deps = componer(leerConfig(process.env));
-// deps: { reservas, pendientes, notificador, crearReserva, cancelarReserva, reintentarNotificaciones }
-```
+En la versión A, Reservas utiliza `NotificadorEnMemoria`
+para mostrar las notificaciones dentro de la misma aplicación.
 
-Pasar de la versión A a la B es solo `MODO_NOTIFICACIONES=http` + `NOTIFICACIONES_URL`.
+En la versión B, Reservas utiliza `NotificadorHttp`
+para comunicarse con el servicio independiente de Notificaciones.
 
-Nombres acordados (la composición los importa así):
+La implementación se elige mediante `MODO_NOTIFICACIONES`,
+sin modificar las reglas de negocio.
 
-| Persona | Archivo | Clase / función | Constructor |
-|---|---|---|---|
-| 2 | `src/application/CrearReserva.ts` | `CrearReserva` | `(reservas, notificador, pendientes, regla, reloj)` |
-| 2 | `src/application/CancelarReserva.ts` | `CancelarReserva` | `(reservas, notificador, pendientes, reloj)` |
-| 3 | `src/infrastructure/ReservaRepositoryEnMemoria.ts` | `ReservaRepositoryEnMemoria` | `()` |
-| 3 | `src/api/app.ts` | `crearApp` | `({ crearReserva, cancelarReserva, reservas })` |
-| 4 | `src/infrastructure/NotificadorEnMemoria.ts` | `NotificadorEnMemoria` | `()` |
-| 4 | `src/application/ReintentarNotificaciones.ts` | `ReintentarNotificaciones` | `(notificador, pendientes, reloj)` |
-| 5 | `src/infrastructure/NotificadorHttp.ts` | `NotificadorHttp` | `(urlBase, timeoutMs)` |
-| 7 | `src/infrastructure/NotificacionPendienteRepositoryEnMemoria.ts` | `NotificacionPendienteRepositoryEnMemoria` | `()` |
+### Distribución de componentes
 
-`reloj` es `() => Date`. Si falla `notificar`, el caso de uso guarda la notificación como PENDIENTE (acordado).
-Hasta que estén todas estas clases, `npm run typecheck` marca los imports faltantes de `composicion.ts`; `npm test` anda igual.
+| Integrante | Responsabilidad |
+|---|---|
+| Lara | Casos de uso y composición de dependencias |
+| Valentino | Repositorios en memoria y API de Reservas |
+| Oriana | Notificador en memoria, servidor de Notificaciones, prueba de dependencias y README |
+| Bianca | Cliente HTTP y manejo de errores |
+| Irina | Docker y demostraciones |
 
-Traducción sugerida de errores a HTTP (Persona 3): `DATOS_INVALIDOS`, `FECHA_PASADA`,
-`ANTICIPACION_INSUFICIENTE`, `ANTICIPACION_EXCEDIDA`, `MOTIVO_REQUERIDO` → 422;
-`TRANSICION_INVALIDA` → 409; reserva inexistente → 404.
+### Comportamiento ante fallas
 
-## Variables de entorno (las lee solo `main`)
+Si el servicio de Notificaciones no está disponible,
+la reserva se guarda igualmente y la notificación
+queda registrada como PENDIENTE.
+
+No se implementan reintentos automáticos.
+
+## Variables de entorno
 
 | Variable | Por defecto | Para qué |
 |---|---|---|
@@ -120,3 +179,4 @@ Traducción sugerida de errores a HTTP (Persona 3): `DATOS_INVALIDOS`, `FECHA_PA
 | `NOTIFICACIONES_URL` | — | URL del servicio en la versión B (obligatoria si es `http`) |
 | `NOTIFICACIONES_TIMEOUT_MS` | 2000 | Timeout del cliente HTTP (versión B) |
 | `PUERTO` | 3000 | Puerto de la API |
+| `PORT` | `3001` | Puerto del servicio independiente de Notificaciones |
