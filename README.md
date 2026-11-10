@@ -20,24 +20,27 @@ npm run typecheck # verifica tipos
 ```
 
 
-## Estructura y responsables
+## Estructura del proyecto
 
 El proyecto está dividido en capas para separar
 la lógica de negocio de las implementaciones técnicas.
 
 ### Organización del proyecto
 
-- `src/domain/`: entidades, reglas de negocio y puertos. Lara.
-- `src/application/`: casos de uso de reservas. Lara.
+- `src/domain/`: entidades, reglas de negocio y puertos.
+- `src/application/`: casos de uso de reservas.
 - `src/infrastructure/`: repositorios y notificadores.
-  Valentino, Oriana y Bianca.
-- `src/api/`: API de Reservas. Valentino.
-- `src/main/`: configuración y conexión de componentes. Lara.
-- `src/notificaciones/`: servicio HTTP independiente. Oriana.
-- `test/arquitectura/`: pruebas de dependencias. Oriana.
+- `src/api/`: API de Reservas.
+- `src/main/`: configuración y conexión de componentes.
+- `src/notificaciones/`: servicio HTTP independiente.
+- `test/domain/`: pruebas de la reserva y de la regla de anticipación.
+- `test/application/`: pruebas de los casos de uso con implementaciones falsas.
+- `test/main/`: pruebas de la configuración.
+- `test/infrastructure/`: pruebas del cliente HTTP.
+- `test/arquitectura/`: pruebas de dependencias.
 
-Irina se encarga de Docker, los archivos Compose y
-los escenarios de demostración.
+El `Dockerfile` y los archivos Compose están en la raíz del proyecto
+(ver la sección de Docker, al final).
 
 ### Regla de dependencia
 
@@ -70,7 +73,7 @@ correctamente.
 
 ## Contrato de los puertos
 
-Los puertos son interfaces definidas por Lara en Domain.
+Los puertos son interfaces definidas en Domain.
 Permiten que los casos de uso trabajen sin depender
 directamente de las implementaciones técnicas.
 
@@ -140,7 +143,7 @@ ni reintentos automáticos de notificaciones.
 
 ## Composición de dependencias (`src/main`)
 
-Lara se encarga de conectar los componentes del proyecto.
+La composición de dependencias conecta los componentes del proyecto.
 
 
 En la versión A, Reservas utiliza `NotificadorEnMemoria`
@@ -162,19 +165,19 @@ sin modificar las reglas de negocio.
 
 ### Componentes y archivos
 
-| Quién | Archivo | Clase / función | Constructor |
-|---|---|---|---|
-| Lara | `src/application/CrearReserva.ts` | `CrearReserva` | `(reservas, notificador, pendientes, regla, reloj)` |
-| Lara | `src/application/ConsultarReserva.ts` | `ConsultarReserva` | `(reservas)` |
-| Lara | `src/application/ListarPendientes.ts` | `ListarPendientes` | `(pendientes)` |
-| Valentino | `src/infrastructure/ReservaRepositoryEnMemoria.ts` | `ReservaRepositoryEnMemoria` | `()` |
-| Valentino | `src/infrastructure/NotificacionPendienteRepositoryEnMemoria.ts` | `NotificacionPendienteRepositoryEnMemoria` | `()` |
-| Valentino | `src/api/app.ts` | `crearApp` | `({ crearReserva, consultarReserva, listarPendientes })` |
-| Valentino | `src/main/server.ts` | Servidor de Reservas | `componer(leerConfig(process.env))` y escucha en `config.puerto` |
-| Oriana | `src/infrastructure/NotificadorEnMemoria.ts` | `NotificadorEnMemoria` | `()` |
-| Oriana | `src/notificaciones/server.ts` | Servicio de Notificaciones | `POST /notificaciones` en el puerto 3001 |
-| Bianca | `src/infrastructure/NotificadorHttp.ts` | `NotificadorHttp` | `(urlBase, timeoutMs)` |
-| Irina | Archivos Docker y Compose | Configuración de despliegues | Versiones A y B |
+| Archivo | Clase / función | Constructor |
+|---|---|---|
+| `src/application/CrearReserva.ts` | `CrearReserva` | `(reservas, notificador, pendientes, regla, reloj)` |
+| `src/application/ConsultarReserva.ts` | `ConsultarReserva` | `(reservas)` |
+| `src/application/ListarPendientes.ts` | `ListarPendientes` | `(pendientes)` |
+| `src/infrastructure/ReservaRepositoryEnMemoria.ts` | `ReservaRepositoryEnMemoria` | `()` |
+| `src/infrastructure/NotificacionPendienteRepositoryEnMemoria.ts` | `NotificacionPendienteRepositoryEnMemoria` | `()` |
+| `src/api/app.ts` | `crearApp` | `({ crearReserva, consultarReserva, listarPendientes })` |
+| `src/main/server.ts` | Servidor de Reservas | `componer(leerConfig(process.env))` y escucha en `config.puerto` |
+| `src/infrastructure/NotificadorEnMemoria.ts` | `NotificadorEnMemoria` | `()` |
+| `src/notificaciones/server.ts` | Servicio de Notificaciones | `POST /notificaciones` en el puerto 3001 |
+| `src/infrastructure/NotificadorHttp.ts` | `NotificadorHttp` | `(urlBase, timeoutMs)` |
+| `Dockerfile`, `docker-compose.a.yml`, `docker-compose.b.yml` | Imagen y despliegues | Versiones A y B |
 
 ### Uso de los casos de uso (para la API)
 
@@ -185,9 +188,9 @@ sin modificar las reglas de negocio.
 - Para responder JSON se utilizan `reserva.aProps()` y `pendiente.aProps()`.
 - El body de `POST /notificaciones` es un objeto `Notificacion` del dominio: `{ reservaId, destinatario, tipo, mensaje }`.
 
-### Traducción sugerida de errores a HTTP (Valentino)
+### Traducción de errores a HTTP
 
-La API de Reservas debe traducir los errores del dominio
+La API de Reservas traduce los errores del dominio
 a los siguientes códigos HTTP:
 
 | Error | Código HTTP |
@@ -199,6 +202,8 @@ a los siguientes códigos HTTP:
 | `MOTIVO_REQUERIDO` | 422 |
 | `TRANSICION_INVALIDA` | 409 |
 | Reserva inexistente | 404 |
+
+`MOTIVO_REQUERIDO` y `TRANSICION_INVALIDA` corresponden a cambios de estado de la reserva: cancelar, o confirmar una que no está PENDIENTE. En esta versión no hay endpoint para cancelar y `CrearReserva` siempre confirma una reserva recién creada, así que la API todavía no los devuelve. El dominio ya está preparado para cuando se agreguen esos casos de uso.
 
 ### Comportamiento ante fallas
 
@@ -219,7 +224,7 @@ No se implementan reintentos automáticos.
 | `NOTIFICACIONES_TIMEOUT_MS` | 2000 | Timeout del cliente HTTP (versión B) |
 | `PUERTO` | 3000 (Reservas) / 3001 (Notificaciones) | Puerto de cada servicio |
 
-## Docker: levantar las versiones A y B (Irina)
+## Docker: levantar las versiones A y B
 
 Hace falta Docker Desktop abierto. No hace falta instalar Node: todo corre dentro de los contenedores.
 

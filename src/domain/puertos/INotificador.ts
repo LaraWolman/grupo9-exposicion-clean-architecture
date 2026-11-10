@@ -2,8 +2,8 @@
  * Puerto de salida hacia el módulo M8 Notificaciones.
  *
  * Es el punto que permite pasar de la versión A a la B sin tocar Domain ni Application:
- *   - Versión A: implementación en memoria, dentro del mismo proceso (Persona 4).
- *   - Versión B: cliente HTTP hacia el contenedor de Notificaciones (Persona 5).
+ *   - Versión A: NotificadorEnMemoria, dentro del mismo proceso.
+ *   - Versión B: NotificadorHttp, cliente HTTP hacia el contenedor de Notificaciones.
  * Cuál se usa lo decide únicamente la composición de dependencias (src/main).
  */
 export type TipoNotificacion = 'RESERVA_CREADA' | 'RESERVA_CANCELADA';

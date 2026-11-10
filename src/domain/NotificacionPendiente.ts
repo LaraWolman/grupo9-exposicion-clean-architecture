@@ -14,8 +14,9 @@ export interface NotificacionPendienteProps {
 
 /**
  * Una notificación que no se pudo entregar (por ejemplo, porque el servicio
- * de Notificaciones estaba caído en la versión B). Queda PENDIENTE hasta que
- * el caso de uso de reintento la entrega y la marca ENTREGADA.
+ * de Notificaciones estaba caído en la versión B). Queda PENDIENTE.
+ * Esta versión no tiene reintento: registrarIntentoFallido() y marcarEntregada()
+ * dejan el dominio preparado para agregar ese caso de uso más adelante.
  */
 export class NotificacionPendiente {
   private constructor(private props: NotificacionPendienteProps) {}
