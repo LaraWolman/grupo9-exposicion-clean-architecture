@@ -11,14 +11,14 @@
 import { ReglaAnticipacion } from '../domain/index.js';
 import type { INotificador, IReservaRepository, INotificacionPendienteRepository } from '../domain/index.js';
 
-import { CrearReserva } from '../application/CrearReserva.js';                   // Lara
-import { ConsultarReserva } from '../application/ConsultarReserva.js';           // Lara
-import { ListarPendientes } from '../application/ListarPendientes.js';           // Lara
+import { CrearReserva } from '../application/CrearReserva.js';
+import { ConsultarReserva } from '../application/ConsultarReserva.js';
+import { ListarPendientes } from '../application/ListarPendientes.js';
 
-import { ReservaRepositoryEnMemoria } from '../infrastructure/ReservaRepositoryEnMemoria.js';   // Valentino
-import { NotificacionPendienteRepositoryEnMemoria } from '../infrastructure/NotificacionPendienteRepositoryEnMemoria.js'; // Valentino
-import { NotificadorEnMemoria } from '../infrastructure/NotificadorEnMemoria.js'; // Oriana (versión A)
-import { NotificadorHttp } from '../infrastructure/NotificadorHttp.js';           // Bianca (versión B)
+import { ReservaRepositoryEnMemoria } from '../infrastructure/ReservaRepositoryEnMemoria.js';
+import { NotificacionPendienteRepositoryEnMemoria } from '../infrastructure/NotificacionPendienteRepositoryEnMemoria.js';
+import { NotificadorEnMemoria } from '../infrastructure/NotificadorEnMemoria.js'; // versión A
+import { NotificadorHttp } from '../infrastructure/NotificadorHttp.js';           // versión B
 
 import type { Config } from './config.js';
 

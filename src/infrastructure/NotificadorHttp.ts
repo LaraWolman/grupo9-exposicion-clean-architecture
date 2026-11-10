@@ -11,7 +11,7 @@ export type FetchLike = (
 ) => Promise<{ ok: boolean; status: number }>;
 
 export class NotificadorHttp implements INotificador {
-    constructor(
+  constructor(
     private readonly baseUrl: string,
     private readonly timeoutMs: number = 2000,
     private readonly fetchFn: FetchLike = fetch as FetchLike,
