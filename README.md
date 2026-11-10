@@ -11,7 +11,7 @@ Solo cambia `infrastructure` y la composición (`main`). `domain` y `application
 
 ## Requisitos
 
-Node 20 o superior. Docker solo para levantar las versiones A y B.
+Node 22 o superior (el contenedor usa Node 24). Docker solo para levantar las versiones A y B.
 
 ```bash
 npm install
@@ -218,3 +218,70 @@ No se implementan reintentos automáticos.
 | `NOTIFICACIONES_URL` | — | URL del servicio en la versión B (obligatoria si es `http`) |
 | `NOTIFICACIONES_TIMEOUT_MS` | 2000 | Timeout del cliente HTTP (versión B) |
 | `PUERTO` | 3000 (Reservas) / 3001 (Notificaciones) | Puerto de cada servicio |
+
+## Docker: levantar las versiones A y B (Irina)
+
+Hace falta Docker Desktop abierto. No hace falta instalar Node: todo corre dentro de los contenedores.
+
+Hay **un solo `Dockerfile`** para los dos servicios (base `node:24-slim`). La misma imagen (`grupo9-clean`) sirve para Reservas y para Notificaciones; qué arranca cada contenedor lo decide el compose.
+
+| | Versión A (`docker-compose.a.yml`) | Versión B (`docker-compose.b.yml`) |
+|---|---|---|
+| Contenedores | 1: `reservas` (puerto 3000) | 2: `reservas` (3000) y `notificaciones` (3001) |
+| `MODO_NOTIFICACIONES` | `memoria` | `http` |
+| Notificador | `NotificadorEnMemoria`, en el mismo proceso | `NotificadorHttp`, hacia `http://notificaciones:3001` |
+
+Entre A y B solo cambian variables de entorno: no se modifica el código.
+
+```bash
+# Versión A
+docker compose -f docker-compose.a.yml up --build
+
+# Versión B
+docker compose -f docker-compose.b.yml up --build
+
+# Apagar (Ctrl+C en la terminal del log y después)
+docker compose -f docker-compose.a.yml down    # o docker-compose.b.yml
+```
+
+Pruebas dentro de la imagen:
+
+```bash
+docker build -t grupo9-clean .
+docker run --rm grupo9-clean npm test
+```
+
+## Escenarios de demostración
+
+Con los contenedores levantados en una terminal (que muestra el log), los pedidos se hacen desde una segunda terminal.
+
+**Crear una reserva** (PowerShell; la fecha queda 3 horas después de ahora, para cumplir la anticipación mínima de 60 minutos):
+
+```powershell
+$fecha = (Get-Date).AddHours(3).ToUniversalTime().ToString("s") + "Z"
+$body = @{ clienteId="cliente_001"; origen="Av. Sarmiento 1000"; destino="UTN FRRe"; tipoVehiculo="AUTO"; fechaHora=$fecha } | ConvertTo-Json
+Invoke-WebRequest -Method Post -Uri http://localhost:3000/reservas -ContentType "application/json" -Body $body -UseBasicParsing
+```
+
+**Ver las notificaciones pendientes:**
+
+```powershell
+(Invoke-WebRequest http://localhost:3000/notificaciones-pendientes -UseBasicParsing).Content
+```
+
+En Linux o Mac, lo mismo con curl (reemplazar `fechaHora` por una fecha y hora UTC entre 1 hora y 30 días después de ahora):
+
+```bash
+curl -X POST http://localhost:3000/reservas -H "Content-Type: application/json" \
+  -d '{"clienteId":"cliente_001","origen":"Av. Sarmiento 1000","destino":"UTN FRRe","tipoVehiculo":"AUTO","fechaHora":"2026-11-20T15:00:00Z"}'
+curl http://localhost:3000/notificaciones-pendientes
+```
+
+| # | Escenario | Cómo | Resultado esperado |
+|---|---|---|---|
+| 1 | Pruebas | `npm test` | 24 pruebas en verde, incluida la de la regla de dependencia |
+| 2 | Versión A | Levantar A y crear una reserva. Después, repetir con `fechaHora="2020-01-01T10:00:00Z"` | 201 con estado `CONFIRMADA` y la notificación en el log de `reservas-1`. Con fecha pasada: `FECHA_PASADA` (422) y sin notificación |
+| 3 | Versión B | Levantar B, crear una reserva y ver las pendientes | 201 y la notificación en el log de `notificaciones-1`, el otro contenedor. Pendientes: `[]` |
+| 4 | Falla de Notificaciones | Con B levantada: `docker compose -f docker-compose.b.yml stop notificaciones`, crear una reserva y ver las pendientes | La reserva igual da 201. Pendientes: una notificación con `"estado":"PENDIENTE"` y el error (`Timeout…` o `No se pudo contactar a Notificaciones…`) |
+
+En el escenario 4, al detener Notificaciones el log muestra `npm error signal SIGTERM` y `exited with code 1`: es la señal de apagado que envía Docker, no una falla del servicio.
